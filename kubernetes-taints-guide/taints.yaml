@@ -1,0 +1,165 @@
+# ============================
+# Pattern 1: GPU Node Pool Isolation
+# ============================
+apiVersion: v1
+kind: Node
+metadata:
+  name: gpu-node-1
+spec:
+  taints:
+  - key: nvidia.com/gpu
+    value: "true"
+    effect: NoSchedule
+  - key: workload-type
+    value: ml-training
+    effect: NoSchedule
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ml-training-job
+spec:
+  tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  - key: workload-type
+    value: ml-training
+    operator: Equal
+    effect: NoSchedule
+  containers:
+  - name: trainer
+    image: busybox
+    command: ["sleep", "3600"]
+    resources:
+      limits:
+        nvidia.com/gpu: 2
+
+# ============================
+# Pattern 2: Spot Instance Management
+# ============================
+apiVersion: v1
+kind: Node
+metadata:
+  name: spot-node-1
+spec:
+  taints:
+  - key: cloud.provider/spot-instance
+    effect: NoSchedule
+  - key: cloud.provider/preemptible
+    effect: NoExecute
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batch-processor
+spec:
+  template:
+    spec:
+      tolerations:
+      - key: cloud.provider/spot-instance
+        operator: Exists
+        effect: NoSchedule
+      - key: cloud.provider/preemptible
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 30
+      nodeSelector:
+        node.kubernetes.io/instance-type: spot
+      containers:
+      - name: processor
+        image: busybox
+        command: ["sleep", "60"]
+
+# ============================
+# Pattern 3: Rolling Maintenance with Grace
+# ============================
+# Step 1 (CLI):
+#   kubectl taint nodes worker-1 maintenance=inprogress:NoSchedule
+# Step 2 (CLI):
+#   kubectl taint nodes worker-1 maintenance=inprogress:NoExecute
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: critical-monitor
+spec:
+  template:
+    spec:
+      tolerations:
+      - key: maintenance
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 7200
+      containers:
+      - name: monitor
+        image: busybox
+        command: ["sleep", "3600"]
+
+# ============================
+# Pattern 4: Multi-Tenant Isolation
+# ============================
+apiVersion: v1
+kind: Node
+metadata:
+  name: tenant-node-1
+spec:
+  taints:
+  - key: tenant
+    value: customer-a
+    effect: NoSchedule
+  - key: compliance
+    value: pci-dss
+    effect: NoSchedule
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tenant-pod
+spec:
+  tolerations:
+  - key: tenant
+    value: customer-a
+    operator: Equal
+    effect: NoSchedule
+  - key: compliance
+    value: pci-dss
+    operator: Equal
+    effect: NoSchedule
+  containers:
+  - name: app
+    image: nginx
+
+# ============================
+# Pattern 5: Emergency Capacity Reserve
+# ============================
+apiVersion: v1
+kind: Node
+metadata:
+  name: emergency-node-1
+spec:
+  taints:
+  - key: reserved-for
+    value: emergency
+    effect: PreferNoSchedule
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: emergency-response
+spec:
+  priorityClassName: system-critical
+  tolerations:
+  - key: reserved-for
+    value: emergency
+    operator: Equal
+    effect: PreferNoSchedule
+  containers:
+  - name: responder
+    image: busybox
+    command: ["sleep", "60"]
