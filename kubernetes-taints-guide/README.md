@@ -2,7 +2,7 @@
 
 This folder contains supporting files (YAML manifests, scripts, and cheatsheets) for the blog post:
 
-👉 [Kubernetes Taints: The DevOps Guide to Node Isolation Without the Pain](https://thedevopstooling.com/kubernetes-taints-guide)
+👉 [Kubernetes Taints: The DevOps Guide to Node Isolation Without the Pain](https://thedevopstooling.com/kubernetes-taints-explained/)
 
 ---
 
